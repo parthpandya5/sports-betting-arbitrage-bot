@@ -1,0 +1,17 @@
+# MacOS
+.DS_Store
+
+# Node modules
+frontend/node_modules/
+
+# Build outputs (React, Vite, Webpack, etc.)
+frontend/dist/
+
+# Spring Boot Maven build outputs
+backend/target/
+
+# Logs
+*.log
+
+# Env files (for secrets)
+*.env
