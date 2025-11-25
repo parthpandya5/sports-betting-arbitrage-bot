@@ -1,17 +1,95 @@
-# MacOS
+#############################
+# OS / SYSTEM FILES
+#############################
 .DS_Store
+Thumbs.db
 
-# Node modules
-frontend/node_modules/
-
-# Build outputs (React, Vite, Webpack, etc.)
-frontend/dist/
-
-# Spring Boot Maven build outputs
-backend/target/
-
-# Logs
-*.log
-
-# Env files (for secrets)
+#############################
+# ENV & SECRETS
+#############################
 *.env
+*.key
+*.crt
+*.pem
+/secrets/
+
+#############################
+# LOG FILES
+#############################
+*.log
+logs/
+trace/
+
+#############################
+# BUILD / DIST FILES
+#############################
+/build/
+/dist/
+*.gz
+*.zip
+
+#############################
+# NODE / FRONTEND
+#############################
+/frontend/node_modules/
+/frontend/dist/
+/frontend/.parcel-cache/
+/frontend/.next/
+/frontend/.nuxt/
+/frontend/.cache/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+#############################
+# REACT / VITE GENERATED FILES
+#############################
+*.tsbuildinfo
+
+#############################
+# JAVA / MAVEN SPRING BOOT BACKEND
+#############################
+/backend/target/
+/backend/.gradle
+/backend/*.iml
+**/.idea/
+/backend/.project
+/backend/.classpath
+/backend/.settings/
+
+# Maven output & cache
+.mvn/timing.properties
+
+#############################
+# IDE / EDITOR SPECIFIC
+#############################
+# VS Code
+.vscode/
+.history/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+
+#############################
+# DOCKER
+#############################
+/docker-data/
+/var/lib/docker/
+
+#############################
+# KAFKA LOCAL DEV
+#############################
+/kafka-logs/
+/kafka-data/
+/zookeeper-data/
+
+#############################
+# MISC
+#############################
+*.bak
+*.tmp
+*.swp
