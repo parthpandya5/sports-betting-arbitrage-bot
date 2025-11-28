@@ -2,6 +2,7 @@ package com.arbitrage.service;
 
 import com.arbitrage.model.ArbitrageOpportunity;
 import com.arbitrage.model.BettingOdds;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,26 +16,30 @@ public class ArbitrageCalculator {
     private static final Logger log = LoggerFactory.getLogger(ArbitrageCalculator.class);
     private final Map<String, List<BettingOdds>> oddsCache = new ConcurrentHashMap<>();
     private final List<ArbitrageOpportunity> opportunities = new ArrayList<>();
+    private final SimpMessagingTemplate messagingTemplate;
+
+    public ArbitrageCalculator(SimpMessagingTemplate messagingTemplate) {
+        this.messagingTemplate = messagingTemplate;
+    }
 
     public void processOdds(BettingOdds newOdds) {
-    // Fix old timestamps
-    if (newOdds.getTimestamp() < System.currentTimeMillis() - 86400000) {
-        log.info("Updating old timestamp to current time");
-        newOdds.setTimestamp(System.currentTimeMillis());
-    }
-    
-    String key = newOdds.getSport() + ":" + newOdds.getEvent() + ":" + newOdds.getMarket();
-    
-    oddsCache.computeIfAbsent(key, k -> new ArrayList<>()).add(newOdds);
-    
-    List<BettingOdds> eventOdds = oddsCache.get(key);
-    log.info("Current odds count for {}: {}", key, eventOdds.size());
-    
-    if (eventOdds.size() >= 2) {
-        findArbitrage(eventOdds);
-    }
-    
-    cleanOldOdds();
+        if (newOdds.getTimestamp() < System.currentTimeMillis() - 86400000) {
+            log.info("Updating old timestamp to current time");
+            newOdds.setTimestamp(System.currentTimeMillis());
+        }
+        
+        String key = newOdds.getSport() + ":" + newOdds.getEvent() + ":" + newOdds.getMarket();
+        
+        oddsCache.computeIfAbsent(key, k -> new ArrayList<>()).add(newOdds);
+        
+        List<BettingOdds> eventOdds = oddsCache.get(key);
+        log.info("Current odds count for {}: {}", key, eventOdds.size());
+        
+        if (eventOdds.size() >= 2) {
+            findArbitrage(eventOdds);
+        }
+        
+        cleanOldOdds();
     }
 
     private void findArbitrage(List<BettingOdds> oddsList) {
@@ -82,6 +87,10 @@ public class ArbitrageCalculator {
                     );
                     
                     opportunities.add(opp);
+                    
+                    // 🔥 REAL-TIME BROADCAST TO FRONTEND
+                    messagingTemplate.convertAndSend("/topic/arbitrage", opp);
+                    
                     log.info("✅ FOUND ARBITRAGE OPPORTUNITY: ROI {}%", String.format("%.2f", roi));
                 } else {
                     log.info("No arbitrage - total prob {} >= 1.0", totalProb);
@@ -91,16 +100,15 @@ public class ArbitrageCalculator {
     }
 
     private void cleanOldOdds() {
-    long cutoff = System.currentTimeMillis() - 300000; // 5 minutes
-    int beforeSize = oddsCache.size();
-    oddsCache.values().forEach(list -> {
-        int listBefore = list.size();
-        list.removeIf(odds -> odds.getTimestamp() < cutoff);
-        int listAfter = list.size();
-        if (listBefore != listAfter) {
-            log.info("Cleaned {} old odds entries", listBefore - listAfter);
-        }
-    });
+        long cutoff = System.currentTimeMillis() - 300000;
+        oddsCache.values().forEach(list -> {
+            int listBefore = list.size();
+            list.removeIf(odds -> odds.getTimestamp() < cutoff);
+            int listAfter = list.size();
+            if (listBefore != listAfter) {
+                log.info("Cleaned {} old odds entries", listBefore - listAfter);
+            }
+        });
     }
 
     public List<ArbitrageOpportunity> getOpportunities() {
