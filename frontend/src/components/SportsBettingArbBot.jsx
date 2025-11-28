@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { TrendingUp, RefreshCw, DollarSign, AlertCircle, Activity } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { TrendingUp, RefreshCw, DollarSign, AlertCircle, Activity, Wifi, WifiOff } from 'lucide-react';
+import { useWebSocket } from '../hooks/useWebSocket';
 
 const SportsBettingArbBot = () => {
   const [opportunities, setOpportunities] = useState([]);
@@ -10,6 +11,36 @@ const SportsBettingArbBot = () => {
     totalProfit: 0
   });
 
+  // Real-time WebSocket connection
+  const handleNewOpportunity = useCallback((newOpp) => {
+    console.log('🔥 Real-time opportunity received:', newOpp);
+    
+    setOpportunities(prev => {
+      const updated = [newOpp, ...prev];
+      updateStats(updated);
+      return updated;
+    });
+  }, []);
+
+  const { isConnected } = useWebSocket(
+    'http://localhost:8080/ws',
+    '/topic/arbitrage',
+    handleNewOpportunity
+  );
+
+  const updateStats = (data) => {
+    if (data.length > 0) {
+      const totalROI = data.reduce((sum, opp) => sum + parseFloat(opp.roi), 0);
+      const totalProfit = data.reduce((sum, opp) => sum + parseFloat(opp.estimatedProfit), 0);
+      
+      setStats({
+        totalOpportunities: data.length,
+        avgROI: (totalROI / data.length).toFixed(2),
+        totalProfit: totalProfit.toFixed(2)
+      });
+    }
+  };
+
   const fetchOpportunities = async () => {
     setIsScanning(true);
     try {
@@ -17,17 +48,7 @@ const SportsBettingArbBot = () => {
       const data = await response.json();
       
       setOpportunities(data);
-      
-      if (data.length > 0) {
-        const totalROI = data.reduce((sum, opp) => sum + parseFloat(opp.roi), 0);
-        const totalProfit = data.reduce((sum, opp) => sum + parseFloat(opp.estimatedProfit), 0);
-        
-        setStats({
-          totalOpportunities: data.length,
-          avgROI: (totalROI / data.length).toFixed(2),
-          totalProfit: totalProfit.toFixed(2)
-        });
-      }
+      updateStats(data);
     } catch (error) {
       console.error('Error fetching opportunities:', error);
     }
@@ -36,20 +57,29 @@ const SportsBettingArbBot = () => {
 
   useEffect(() => {
     fetchOpportunities();
-    const interval = setInterval(fetchOpportunities, 5000);
-    return () => clearInterval(interval);
   }, []);
 
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(to bottom right, #0f172a, #1e3a8a, #0f172a)', padding: '24px' }}>
       <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
-        {/* Header */}
+        {/* Header with Connection Status */}
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
           <h1 style={{ fontSize: '36px', fontWeight: 'bold', color: 'white', marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
             <TrendingUp style={{ color: '#4ade80' }} size={40} />
             Sports Betting Arbitrage Bot
           </h1>
-          <p style={{ color: '#bfdbfe' }}>Real-time arbitrage opportunity scanner with Kafka streaming</p>
+          <p style={{ color: '#bfdbfe', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+            Real-time arbitrage opportunity scanner with Kafka streaming
+            {isConnected ? (
+              <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#4ade80' }}>
+                <Wifi size={16} /> Live
+              </span>
+            ) : (
+              <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#f87171' }}>
+                <WifiOff size={16} /> Disconnected
+              </span>
+            )}
+          </p>
         </div>
 
         {/* Stats Dashboard */}
@@ -101,7 +131,8 @@ const SportsBettingArbBot = () => {
               fontWeight: '600',
               border: 'none',
               cursor: isScanning ? 'not-allowed' : 'pointer',
-              boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'
+              boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)',
+              transition: 'all 0.3s'
             }}
           >
             <RefreshCw className={isScanning ? 'spin' : ''} size={20} />
@@ -115,11 +146,20 @@ const SportsBettingArbBot = () => {
             <div style={{ background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)', borderRadius: '8px', padding: '48px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.2)' }}>
               <AlertCircle style={{ margin: '0 auto 16px', color: '#93c5fd' }} size={48} />
               <p style={{ color: 'white', fontSize: '18px' }}>No arbitrage opportunities found</p>
-              <p style={{ color: '#bfdbfe', marginTop: '8px' }}>Send betting odds to Kafka to see opportunities</p>
+              <p style={{ color: '#bfdbfe', marginTop: '8px' }}>
+                {isConnected ? 'Listening for real-time opportunities...' : 'Waiting for connection...'}
+              </p>
             </div>
           ) : (
             opportunities.map((opp, index) => (
-              <div key={index} style={{ background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)', borderRadius: '8px', padding: '24px', border: '1px solid rgba(255,255,255,0.2)' }}>
+              <div key={index} style={{ 
+                background: 'rgba(255,255,255,0.1)', 
+                backdropFilter: 'blur(10px)', 
+                borderRadius: '8px', 
+                padding: '24px', 
+                border: '1px solid rgba(255,255,255,0.2)',
+                animation: index === 0 ? 'slideIn 0.5s ease-out' : 'none'
+              }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
                   <div>
                     <p style={{ color: '#bfdbfe', fontSize: '14px', marginBottom: '4px' }}>Event</p>
@@ -130,21 +170,21 @@ const SportsBettingArbBot = () => {
                   <div>
                     <p style={{ color: '#bfdbfe', fontSize: '14px', marginBottom: '4px' }}>Book 1: {opp.sportsbook1}</p>
                     <p style={{ color: 'white', fontSize: '20px', fontWeight: 'bold' }}>{opp.odds1}</p>
-                    <p style={{ color: '#4ade80', fontSize: '14px' }}>Stake: {opp.stake1Percentage}%</p>
+                    <p style={{ color: '#4ade80', fontSize: '14px' }}>Stake: {opp.stake1Percentage.toFixed(2)}%</p>
                   </div>
 
                   <div>
                     <p style={{ color: '#bfdbfe', fontSize: '14px', marginBottom: '4px' }}>Book 2: {opp.sportsbook2}</p>
                     <p style={{ color: 'white', fontSize: '20px', fontWeight: 'bold' }}>{opp.odds2}</p>
-                    <p style={{ color: '#4ade80', fontSize: '14px' }}>Stake: {opp.stake2Percentage}%</p>
+                    <p style={{ color: '#4ade80', fontSize: '14px' }}>Stake: {opp.stake2Percentage.toFixed(2)}%</p>
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-end' }}>
                     <div style={{ background: 'rgba(34, 197, 94, 0.2)', border: '1px solid #4ade80', borderRadius: '8px', padding: '8px 16px', textAlign: 'center' }}>
                       <p style={{ color: '#4ade80', fontSize: '14px' }}>ROI</p>
-                      <p style={{ color: '#4ade80', fontSize: '24px', fontWeight: 'bold' }}>{opp.roi}%</p>
+                      <p style={{ color: '#4ade80', fontSize: '24px', fontWeight: 'bold' }}>{opp.roi.toFixed(2)}%</p>
                     </div>
-                    <p style={{ color: '#facc15', fontSize: '14px', marginTop: '8px' }}>Est. Profit: ${opp.estimatedProfit}</p>
+                    <p style={{ color: '#facc15', fontSize: '14px', marginTop: '8px' }}>Est. Profit: ${opp.estimatedProfit.toFixed(2)}</p>
                   </div>
                 </div>
               </div>
@@ -158,11 +198,33 @@ const SportsBettingArbBot = () => {
             <AlertCircle style={{ color: '#93c5fd', flexShrink: 0, marginTop: '4px' }} size={20} />
             <div style={{ fontSize: '14px', color: '#dbeafe' }}>
               <p style={{ fontWeight: '600', marginBottom: '4px' }}>Live Kafka Integration</p>
-              <p>Connected to Java backend processing real-time betting odds via Kafka streams. Send JSON messages to the "betting-odds" topic to see arbitrage calculations.</p>
+              <p>Connected to Java backend processing real-time betting odds via Kafka streams. New opportunities appear instantly via WebSocket.</p>
             </div>
           </div>
         </div>
       </div>
+
+      <style>{`
+        @keyframes slideIn {
+          from {
+            opacity: 0;
+            transform: translateY(-20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        .spin {
+          animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 };
