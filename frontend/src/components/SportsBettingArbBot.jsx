@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { TrendingUp, RefreshCw, DollarSign, AlertCircle, Activity, Wifi, WifiOff } from 'lucide-react';
-import { useWebSocket } from '../hooks/useWebSocket';
+import { useWebSocket } from '../hooks/useWebsocket';
 
 const SportsBettingArbBot = () => {
   const [opportunities, setOpportunities] = useState([]);
